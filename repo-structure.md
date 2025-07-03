@@ -1,3 +1,8 @@
+# GD&AI Repositories
+
+This document describes the preferred and recommended structure of any repository supporting platform components, use cases and data products. The Structure of the repository outlined in this document, will be supporting the path to production process as outlined in the [path to production](path-to-production.md) document.
+The repository structure provides mandatory artifacts and templates required to accellerated the the path to production.
+
 ## Repository Structure
 
 The repository structure is as follows:
@@ -10,29 +15,7 @@ GD&AI-Repository
 │   │   ├── feature_request.md
 │   │   └── use_case.md
 │   └── workflows
-│       ├── cicd.yml
-│       └── pr-validation.yml
 ├── /docs
-│   ├── /solution-documentation
-│   │   ├── requirements-documentation
-│   │   │   ├── use-case-1.md
-│   │   │   └── use-case-2.md
-│   │   ├── solution-design
-│   │   │   ├── use-case-1.md
-│   │   │   └── use-case-2.md
-│   │   ├── solution-architecture
-│   │   │   ├── use-case-1.md
-│   │   │   └── use-case-2.md
-│   │   └── operational-documentation
-│   │       ├── use-case-1.md
-│   │       └── use-case-2.md
-│   └── /data-products
-│       ├── /data-product-1
-│       │   ├── data-product-description.md
-│       │   └── data-product-requirements.md
-│       └── /data-product-2
-│           ├── data-product-description.md
-│           └── data-product-requirements.md
 ├── /src
 │   ├── /main
 │   └── /test
@@ -47,3 +30,4 @@ GD&AI-Repository
 └── .gitignore
 ```
 
+### .github

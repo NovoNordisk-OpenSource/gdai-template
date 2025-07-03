@@ -1,0 +1,316 @@
+name: {{cookiecutter.project_name}} Project Hierarchy Sync
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened, labeled, unlabeled]
+  project_card:
+    types: [created, moved]
+  pull_request:
+    types: [opened, closed, edited]
+
+jobs:
+  sync_hierarchy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      repository-projects: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup GitHub CLI
+        uses: cli/cli-action@v2
+
+      - name: Sync Project Hierarchy
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+          script: |
+            const util = require('util');
+            const exec = util.promisify(require('child_process').exec);
+
+            async function getIssueDetails(owner, repo, issue_number) {
+              try {
+                return await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number
+                });
+              } catch (error) {
+                console.error(`Error getting issue ${owner}/${repo}#${issue_number}: ${error}`);
+                return null;
+              }
+            }
+
+            async function getEpicFromFeature(featureBody) {
+              // Extract epic reference from feature body
+              const epicMatch = featureBody.match(/Epic: #(\d+)/);
+              if (!epicMatch) return null;
+              
+              const epicNumber = epicMatch[1];
+              // Assuming epics are in the organization's main portfolio repository
+              return {
+                owner: '{{cookiecutter.author_name}}',
+                repo: 'platform-engineering-portfolio',
+                issue_number: parseInt(epicNumber)
+              };
+            }
+
+            async function getFeatureFromTask(taskBody) {
+              // Extract feature reference from task body
+              const featureMatch = taskBody.match(/Feature: #(\d+)/);
+              if (!featureMatch) return null;
+              
+              const featureNumber = featureMatch[1];
+              // Feature is in the same repo as the task
+              return {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: parseInt(featureNumber)
+              };
+            }
+
+            async function updateParentProgress(parentType, parent, childrenQuery) {
+              // Get all children (tasks for features, features for epics)
+              const children = await github.rest.search.issuesAndPullRequests({
+                q: childrenQuery
+              });
+              
+              // Calculate progress metrics
+              const totalChildren = children.data.total_count;
+              const closedChildren = children.data.items.filter(item => item.state === 'closed').length;
+              const progress = totalChildren > 0 ? Math.round((closedChildren / totalChildren) * 100) : 0;
+              
+              // Update the parent issue with progress information
+              const progressUpdate = `
+              ## Progress Update
+              - ${closedChildren}/${totalChildren} ${parentType === 'Epic' ? 'features' : 'tasks'} completed (${progress}%)
+              - Last updated: ${new Date().toISOString()}
+              `;
+              
+              // Check if there's an existing progress section to update
+              const parentIssue = await getIssueDetails(parent.owner, parent.repo, parent.issue_number);
+              if (!parentIssue) return;
+              
+              let body = parentIssue.data.body;
+              if (body.includes('## Progress Update')) {
+                // Replace existing progress section
+                body = body.replace(/## Progress Update[\s\S]*?(?=##|$)/, progressUpdate);
+              } else {
+                // Add progress section before Additional Information or at the end
+                if (body.includes('## Additional Information')) {
+                  body = body.replace('## Additional Information', `${progressUpdate}\n## Additional Information`);
+                } else {
+                  body = `${body}\n\n${progressUpdate}`;
+                }
+              }
+              
+              // Update the parent issue
+              await github.rest.issues.update({
+                owner: parent.owner,
+                repo: parent.repo,
+                issue_number: parent.issue_number,
+                body: body
+              });
+              
+              // Comment with status update if significant change (optional)
+              if (context.payload.action === 'closed' || progress % 25 === 0) {
+                await github.rest.issues.createComment({
+                  owner: parent.owner,
+                  repo: parent.repo,
+                  issue_number: parent.issue_number,
+                  body: `🔄 **Progress Update**: ${closedChildren}/${totalChildren} ${parentType === 'Epic' ? 'features' : 'tasks'} completed (${progress}%)`
+                });
+              }
+            }
+
+            async function syncStatusLabels(issue, parentType, parent) {
+              // Get parent and issue labels
+              const parentIssue = await getIssueDetails(parent.owner, parent.repo, parent.issue_number);
+              if (!parentIssue) return;
+              
+              // Handle risk/blocked status sync
+              const isBlocked = issue.labels.some(label => label.name === 'blocked');
+              const isAtRisk = issue.labels.some(label => label.name === 'at-risk');
+              
+              // Apply blocked or at-risk status to parent if needed
+              if (isBlocked) {
+                // Check if parent already has blocked label
+                const hasBlockedLabel = parentIssue.data.labels.some(label => label.name === 'blocked');
+                if (!hasBlockedLabel) {
+                  // Add blocked label to parent
+                  await github.rest.issues.addLabels({
+                    owner: parent.owner,
+                    repo: parent.repo,
+                    issue_number: parent.issue_number,
+                    labels: ['blocked']
+                  });
+                  
+                  // Comment on the parent issue
+                  await github.rest.issues.createComment({
+                    owner: parent.owner,
+                    repo: parent.repo,
+                    issue_number: parent.issue_number,
+                    body: `⚠️ This ${parentType} is now **blocked** because ${context.repo.owner}/${context.repo.repo}#${issue.number} is blocked.`
+                  });
+                }
+              } else if (isAtRisk) {
+                // Similar logic for at-risk status
+                const hasAtRiskLabel = parentIssue.data.labels.some(label => label.name === 'at-risk');
+                if (!hasAtRiskLabel) {
+                  await github.rest.issues.addLabels({
+                    owner: parent.owner,
+                    repo: parent.repo,
+                    issue_number: parent.issue_number,
+                    labels: ['at-risk']
+                  });
+                  
+                  await github.rest.issues.createComment({
+                    owner: parent.owner,
+                    repo: parent.repo,
+                    issue_number: parent.issue_number,
+                    body: `⚠️ This ${parentType} is now **at risk** because ${context.repo.owner}/${context.repo.repo}#${issue.number} is at risk.`
+                  });
+                }
+              }
+            }
+
+            async function handleProjectCardMove(card) {
+              // Get column information
+              let columnResponse;
+              try {
+                columnResponse = await github.rest.projects.getColumn({
+                  column_id: card.column_id
+                });
+              } catch (error) {
+                console.error(`Error getting column: ${error}`);
+                return;
+              }
+              
+              const column = columnResponse.data;
+              
+              // Check if this card is linked to an issue
+              if (!card.content_url || !card.content_url.includes('/issues/')) return;
+              
+              // Get issue details
+              const issueNumber = parseInt(card.content_url.split('/').pop());
+              const issue = await getIssueDetails(context.repo.owner, context.repo.repo, issueNumber);
+              if (!issue) return;
+              
+              // Check if this is a task (has Feature reference)
+              const featureRef = await getFeatureFromTask(issue.data.body);
+              if (featureRef) {
+                // Update linked feature with task status
+                await github.rest.issues.createComment({
+                  owner: featureRef.owner,
+                  repo: featureRef.repo,
+                  issue_number: featureRef.issue_number,
+                  body: `📋 Task #${issueNumber} moved to **${column.name}** column`
+                });
+                
+                // Update feature progress based on tasks
+                const taskQuery = `repo:${context.repo.owner}/${context.repo.repo} is:issue Feature: #${featureRef.issue_number}`;
+                await updateParentProgress('Feature', featureRef, taskQuery);
+              }
+              
+              // Check if this is a feature (has Epic reference)
+              const epicRef = await getEpicFromFeature(issue.data.body);
+              if (epicRef) {
+                // Update linked epic with feature status
+                await github.rest.issues.createComment({
+                  owner: epicRef.owner,
+                  repo: epicRef.repo,
+                  issue_number: epicRef.issue_number,
+                  body: `🔍 Feature ${context.repo.owner}/${context.repo.repo}#${issueNumber} moved to **${column.name}** stage`
+                });
+                
+                // Update epic progress based on features
+                const featureQuery = `org:${context.repo.owner} is:issue Epic: #${epicRef.issue_number}`;
+                await updateParentProgress('Epic', epicRef, featureQuery);
+              }
+            }
+
+            async function handleIssueUpdate(issue) {
+              // Check if this is a task and update its feature
+              const featureRef = await getFeatureFromTask(issue.body);
+              if (featureRef) {
+                // Sync status labels (blocked, at-risk)
+                await syncStatusLabels(issue, 'Feature', featureRef);
+                
+                // Update feature progress if task state changed
+                if (context.payload.action === 'closed' || context.payload.action === 'reopened') {
+                  const taskQuery = `repo:${context.repo.owner}/${context.repo.repo} is:issue Feature: #${featureRef.issue_number}`;
+                  await updateParentProgress('Feature', featureRef, taskQuery);
+                }
+              }
+              
+              // Check if this is a feature and update its epic
+              const epicRef = await getEpicFromFeature(issue.body);
+              if (epicRef) {
+                // Sync status labels (blocked, at-risk)
+                await syncStatusLabels(issue, 'Epic', epicRef);
+                
+                // Update epic progress if feature state changed
+                if (context.payload.action === 'closed' || context.payload.action === 'reopened') {
+                  const featureQuery = `org:${context.repo.owner} is:issue Epic: #${epicRef.issue_number}`;
+                  await updateParentProgress('Epic', epicRef, featureQuery);
+                }
+              }
+            }
+
+            async function handlePullRequest(pr) {
+              // Check for linked issues in the PR body
+              const issueRefs = pr.body.match(/(fixes|closes|resolves) #(\d+)/gi);
+              if (!issueRefs) return;
+              
+              for (const ref of issueRefs) {
+                const issueNumber = parseInt(ref.split('#')[1]);
+                
+                // Get the linked issue
+                const issue = await getIssueDetails(context.repo.owner, context.repo.repo, issueNumber);
+                if (!issue) continue;
+                
+                // Update task status when PR is merged
+                if (pr.merged) {
+                  // Check if this is related to a task
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issueNumber,
+                    body: `✅ Code changes merged in PR #${pr.number}`
+                  });
+                  
+                  // If PR is merged and it fixes an issue, propagate updates up the chain
+                  const featureRef = await getFeatureFromTask(issue.data.body);
+                  if (featureRef) {
+                    const taskQuery = `repo:${context.repo.owner}/${context.repo.repo} is:issue Feature: #${featureRef.issue_number}`;
+                    await updateParentProgress('Feature', featureRef, taskQuery);
+                  }
+                }
+              }
+            }
+
+            // Main execution logic
+            try {
+              const eventName = context.eventName;
+              
+              if (eventName === 'issues') {
+                const issue = context.payload.issue;
+                await handleIssueUpdate(issue);
+              } 
+              else if (eventName === 'project_card') {
+                const card = context.payload.project_card;
+                if (context.payload.action === 'moved') {
+                  await handleProjectCardMove(card);
+                }
+              }
+              else if (eventName === 'pull_request') {
+                const pr = context.payload.pull_request;
+                await handlePullRequest(pr);
+              }
+              
+            } catch (error) {
+              console.error(`Error in project hierarchy sync: ${error}`);
+            }

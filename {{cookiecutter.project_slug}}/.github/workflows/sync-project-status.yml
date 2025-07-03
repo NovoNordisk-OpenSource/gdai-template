@@ -1,0 +1,119 @@
+name: {{cookiecutter.project_name}} Sync Project Status
+
+on:
+  project_card:
+    types: [moved]
+  issues:
+    types: [edited, labeled, unlabeled]
+
+jobs:
+  sync_status:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      project: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Get project card details
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GH_PROJECT_TOKEN }}
+          script: |
+            const issue_number = context.payload.issue?.number;
+            if (!issue_number && !context.payload.project_card) {
+              console.log('No issue or project card found in the event payload');
+              return;
+            }
+
+            // Handle project card moved event
+            if (context.payload.project_card) {
+              const card = context.payload.project_card;
+              
+              // Get column information
+              try {
+                const column = await github.rest.projects.getColumn({
+                  column_id: context.payload.project_card.column_id
+                });
+                
+                // Extract issue information if this card is linked to an issue
+                if (card.content_url && card.content_url.includes('/issues/')) {
+                  const issueNumber = card.content_url.split('/').pop();
+                  const repo = context.repo.repo;
+                  const owner = context.repo.owner;
+                  
+                  // Get issue details to find Initiative ID
+                  const issue = await github.rest.issues.get({
+                    owner,
+                    repo,
+                    issue_number: issueNumber
+                  });
+                  
+                  // Look for Initiative ID in issue body or custom fields
+                  const initiativeIdMatch = issue.data.body.match(/Organization Initiative: #(\d+)/);
+                  if (initiativeIdMatch) {
+                    const initiativeId = initiativeIdMatch[1];
+                    
+                    // Map column names to development stages
+                    const stageMap = {
+                      'Design': 'Design stage',
+                      'Build': 'Build stage',
+                      'Develop': 'Development in progress',
+                      'Test': 'Testing in progress',
+                      'Validate': 'Validation in progress',
+                      'Release': 'Released'
+                    };
+                    
+                    const columnName = column.data.name;
+                    const status = stageMap[columnName] || `In ${columnName}`;
+                    
+                    // Comment on the organization initiative issue with status update
+                    console.log(`Updating initiative #${initiativeId} with status: ${status}`);
+                    
+                    // This would typically update the organization project item
+                    // For this example, we'll just add a comment to the initiative issue
+                    await github.rest.issues.createComment({
+                      owner: '{{cookiecutter.author_name}}',
+                      repo: '{{cookiecutter.project_slug}}-portfolio',  // This should be the repo where org projects are managed
+                      issue_number: initiativeId,
+                      body: `Team update from ${owner}/${repo}: Issue #${issueNumber} has moved to ${columnName} stage.`
+                    });
+                  } else {
+                    console.log("No Initiative ID found in the issue");
+                  }
+                }
+              } catch (error) {
+                console.error(`Error processing project card: ${error}`);
+              }
+            }
+
+            // Handle issue events
+            if (issue_number) {
+              const issue = context.payload.issue;
+              
+              // Check if this is a status update
+              if (issue.labels.some(label => label.name.startsWith('status:'))) {
+                // Extract status from labels
+                const statusLabel = issue.labels.find(label => label.name.startsWith('status:'));
+                if (statusLabel) {
+                  const status = statusLabel.name.replace('status:', '').trim();
+                  
+                  // Look for Initiative ID in issue body
+                  const initiativeIdMatch = issue.body.match(/Organization Initiative: #(\d+)/);
+                  if (initiativeIdMatch) {
+                    const initiativeId = initiativeIdMatch[1];
+                    
+                    // Update organization initiative with new status
+                    console.log(`Updating initiative #${initiativeId} with status: ${status}`);
+                    
+                    await github.rest.issues.createComment({
+                      owner: '{{cookiecutter.author_name}}',
+                      repo: '{{cookiecutter.project_slug}}-portfolio',
+                      issue_number: initiativeId, 
+                      body: `Status update from ${context.repo.owner}/${context.repo.repo}: Issue #${issue_number} is now ${status}`
+                    });
+                  }
+                }
+              }
+            }

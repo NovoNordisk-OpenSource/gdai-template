@@ -1,0 +1,84 @@
+# This file defines a custom issue template for feature requests in a GitHub repository.
+name: Feature Request
+description: Submit a new feature idea for product development
+title: "[Feature] <feature title>"
+labels: ["feature"]
+projects: ["11"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Feature Request Template
+
+        Use this template to propose new features and capture requirements.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: Clearly describe the feature you are requesting and the problem it solves.
+      placeholder: "A detailed description of the feature and its purpose..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: user_story
+    attributes:
+      label: User Story
+      description: Who is the user? What do they need? Why do they need it?
+      placeholder: "As a <user type>, I want <feature> so that <benefit>."
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: List specific, testable requirements that must be met for this feature to be considered complete.
+      placeholder: "- [ ] Criterion 1\n- [ ] Criterion 2\n- [ ] Criterion 3"
+    validations:
+      required: true
+
+  - type: input
+    id: initiative
+    attributes:
+      label: Initiative Reference
+      description: Link to the related initiative, epic, or parent ticket if applicable.
+      placeholder: "#123"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: development_progress
+    attributes:
+      label: Development Progress
+      description: Current status of the feature development
+      options:
+        - label: Design
+        - label: Implementation
+        - label: Testing
+        - label: Documentation
+        - label: Release
+    validations:
+      required: false
+
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Related Tasks
+      description: List the specific tasks needed to implement this feature. Use GitHub task lists.
+      placeholder: |
+        - [ ] Task 1
+        - [ ] Task 2 (#issue_number)
+        - [ ] Task 3
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Add any other details or supporting documentation, screenshots, or references.
+      placeholder: "Additional information, context, or files..."
+    validations:
+      required: false

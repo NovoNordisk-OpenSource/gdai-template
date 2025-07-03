@@ -1,0 +1,80 @@
+name: Epic
+description: Create an epic for large features or projects that require multiple tasks or issues.
+title: "[Epic] <Short Descriptive Title>"
+labels: ["epic"]
+projects: ["11"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Epic Issue Template
+
+        Use this template to outline a large feature or project. Break down the work into smaller tasks or issues, and link them in the checklist below.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Epic Summary
+      description: Provide a concise summary of the epic.
+      placeholder: "Short summary of the epic"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the purpose, goals, and context for this epic.
+      placeholder: "Detailed description of the epic, its goals, and any relevant context."
+    validations:
+      required: true
+
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Tasks / Issues
+      description: List the tasks or issues that need to be completed as part of this epic. Use GitHub task lists or reference issues.
+      placeholder: |
+        - [ ] Task 1
+        - [ ] Task 2 (#issue_number)
+        - [ ] Task 3
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Define the requirements that must be met for this epic to be considered complete.
+      placeholder: |
+        - [ ] Criteria 1
+        - [ ] Criteria 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List any dependencies or blockers for this epic.
+      placeholder: "Any issues, teams, or resources this epic depends on."
+    validations:
+      required: false
+
+  - type: input
+    id: stakeholders
+    attributes:
+      label: Stakeholders
+      description: Who are the main stakeholders or points of contact for this epic?
+      placeholder: "@github-username or email"
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional_notes
+    attributes:
+      label: Additional Notes
+      description: Add any extra information or context.
+      placeholder: "Any extra notes, links, or references."
+    validations:
+      required: false

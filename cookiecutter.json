@@ -4,10 +4,18 @@
     "project_description": "A repository for GD&AI projects",
     "author_name": "Your Name",
     "author_email": "your.email@example.com",
+    "author_initials": "YN",
     "version": "0.1.0",
     "license": ["MIT", "Apache-2.0", "GPL-3.0", "BSD-3-Clause"],
-    "use_case_1_name": "Use Case 1",
-    "use_case_2_name": "Use Case 2",
-    "data_product_1_name": "Data Product 1",
-    "data_product_2_name": "Data Product 2"
+    "system_owner_name": "System Owner",
+    "system_owner_initials": "SO",
+    "qa_name": "QA Person",
+    "qa_initials": "QA",
+    "project_manager_name": "Project Manager",
+    "project_manager_initials": "PM",
+    "peer_reviewer_initials": "PR",
+    "development_platform": ["Azure DevOps", "GitHub"],
+    "secrets_store": "Azure Key Vault",
+    "business_process": "Data Analytics and AI Model Development",
+    "system_category": "GxP Supporting System"
 }
