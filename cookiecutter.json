@@ -1,0 +1,13 @@
+{
+    "project_name": "GD&AI Repository",
+    "project_slug": "{{ cookiecutter.project_name.lower().replace(' ', '-').replace('&', 'and') }}",
+    "project_description": "A repository for GD&AI projects",
+    "author_name": "Your Name",
+    "author_email": "your.email@example.com",
+    "version": "0.1.0",
+    "license": ["MIT", "Apache-2.0", "GPL-3.0", "BSD-3-Clause"],
+    "use_case_1_name": "Use Case 1",
+    "use_case_2_name": "Use Case 2",
+    "data_product_1_name": "Data Product 1",
+    "data_product_2_name": "Data Product 2"
+}
