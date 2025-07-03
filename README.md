@@ -20,7 +20,7 @@ pip install cookiecutter
 
 2. Create a new project:
 ```bash
-cookiecutter /path/to/gdai-template
+cookiecutter gh:NovoNordisk-OpenSource/gdai-template
 ```
 
 3. Answer the prompts:
