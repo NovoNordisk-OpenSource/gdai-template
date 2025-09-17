@@ -19,7 +19,7 @@ jobs:
       - name: Get project card details
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.{{cookiecutter.github_token_secret_name}} }}
+          github-token: ${{ "{{ secrets." }}{{ cookiecutter.github_token_secret_name }}{{ " }}" }}
           script: |
             const issue_number = context.payload.issue?.number;
             if (!issue_number && !context.payload.project_card) {
