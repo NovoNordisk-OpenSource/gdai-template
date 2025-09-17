@@ -21,6 +21,5 @@
     "data_product_1_name": "Data Product 1",
     "data_product_2_name": "Data Product 2",
     "use_case_1_name": "Use Case 1",
-    "use_case_2_name": "Use Case 2",
-    "github_token_secret_name": "GITHUB_TOKEN"
+    "use_case_2_name": "Use Case 2"
 }
